@@ -24,6 +24,7 @@ public enum ScriptObjectType {
     WAREHOUSES("WAREHOUSE", ObjectLevel.ACCOUNT, false),
     NOTEBOOKS("NOTEBOOK", ObjectLevel.SCHEMA, false),
     TAGS("TAG", ObjectLevel.SCHEMA, false),
+    ROW_ACCESS_POLICIES("ROW ACCESS POLICY", ObjectLevel.SCHEMA, false),
 
     // Migration-enabled objects
     TABLES("TABLE", ObjectLevel.SCHEMA, true),
