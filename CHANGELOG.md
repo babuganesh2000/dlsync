@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [3.2.0] - 2026-02-27
 ### Added
 - Added PLAN command for deployment preview (dry-run without database modifications)
+- Added support for TAGS object type
+- Added support for ROW_ACCESS_POLICIES object type
 ## [3.1.0] - 2026-02-10
 ### Added
 - Added support for AGENTS object type
