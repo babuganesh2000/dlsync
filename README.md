@@ -28,6 +28,7 @@ DLSync also understands interdependencies between different scripts, thus applyi
    1. [How to use this tool](#how-to-use-this-tool)
       1. [Deploy](#deploy)
       1. [Test](#test)
+      1. [Plan](#plan)
       1. [Rollback](#rollback)
       1. [Verify](#verify)
       1. [Create script](#create-script)
@@ -41,6 +42,7 @@ DLSync also understands interdependencies between different scripts, thus applyi
    1. [dl_sync_change_sync](#dl_sync_change_sync)
    1. [dl_sync_script_event](#dl_sync_script_event)
 1. [Example scripts](#example-scripts)
+1. [Contributing](#contributing)
 
 ## Key Features 
 - Hybrid Change Management: It combines declarative and migration based change management to manage database changes
@@ -113,7 +115,7 @@ Where
   - Other account-level objects (users, resource monitors, integrations, etc.)
 - **database_name_*:** is the database name of your project, 
 - **schema_name_*:** are schemas inside the database, 
-- **object_type:** is type of the object only 1 of the following (VIEWS, FUNCTIONS, PROCEDURES, FILE_FORMATS, TABLES, SEQUENCES, STAGES, STREAMS, TASKS, STREAMLITS, PIPES, ALERTS, DYNAMIC_TABLES, MASKING_POLICIES, NOTEBOOKS, CORTEX_SEARCH_SERVICES, SEMANTIC_VIEWS, AGENTS),
+- **object_type:** is type of the object only 1 of the following (VIEWS, FUNCTIONS, PROCEDURES, FILE_FORMATS, TABLES, SEQUENCES, STAGES, STREAMS, TASKS, STREAMLITS, PIPES, ALERTS, DYNAMIC_TABLES, MASKING_POLICIES, ROW_ACCESS_POLICIES, TAGS, NOTEBOOKS, CORTEX_SEARCH_SERVICES, SEMANTIC_VIEWS, AGENTS),
 - **object_name_*.sql:** are individual database object scripts.
 - **config.yml:** is a configuration file used to configure DLSync behavior.
 - **parameter-[profile-*].properties:** is parameter to value map file. This is going to be used by corresponding individual instances of your database.
@@ -131,7 +133,7 @@ For example, if you have a view named `SAMPLE_VIEW` in schema `MY_SCHEMA` in dat
 
 The structure and content of the scripts differ based on the type of script. This tool categorizes scripts into 2 types: Declarative scripts and Migration scripts.
 #### 1. Declarative Script
-This type of script is used for object types of VIEWS, FUNCTIONS, PROCEDURES, FILE_FORMATS, PIPES, MASKING_POLICIES, NOTEBOOKS, CORTEX_SEARCH_SERVICES, SEMANTIC_VIEWS, AGENTS, STREAMLITS, RESOURCE_MONITORS, NETWORK_POLICIES, SESSION_POLICIES, PASSWORD_POLICIES, AUTHENTICATION_POLICIES, API_INTEGRATIONS, NOTIFICATION_INTEGRATIONS, SECURITY_INTEGRATIONS, STORAGE_INTEGRATIONS, and WAREHOUSES.
+This type of script is used for object types of VIEWS, FUNCTIONS, PROCEDURES, FILE_FORMATS, PIPES, MASKING_POLICIES, ROW_ACCESS_POLICIES, TAGS, NOTEBOOKS, CORTEX_SEARCH_SERVICES, SEMANTIC_VIEWS, AGENTS, STREAMLITS, RESOURCE_MONITORS, NETWORK_POLICIES, SESSION_POLICIES, PASSWORD_POLICIES, AUTHENTICATION_POLICIES, API_INTEGRATIONS, NOTIFICATION_INTEGRATIONS, SECURITY_INTEGRATIONS, STORAGE_INTEGRATIONS, and WAREHOUSES.
 In this type of script, you define the current state (desired state) of the object.
 When a change is made to the script, DLSync replaces the current object with the updated definition. 
 These types of scripts must always have a `create or replace` statement. Every time you make a change to the script, DLSync will replace the object with the new definition.
@@ -230,9 +232,9 @@ Writing unit tests follows a 3-step process:
 - Add the query to refer to the database object with a select statement.
 For example, if you have a view named `SAMPLE_VIEW`  with the following content:
 ```
-create or replace view ${MY_DB}.{MY_SCHEMA}.SAMPLE_VIEW as 
-select tb1.id, tb1.my_column || '->' || tb2.my_column as my_new_column from ${MY_DB}.{MY_SECOND_SCHEMA}.MY_TABLE_1 tb_1
-join ${MY_DB}.{MY_SECOND_SCHEMA}.MY_TABLE_2 tb2 
+create or replace view ${MY_DB}.${MY_SCHEMA}.SAMPLE_VIEW as 
+select tb1.id, tb1.my_column || '->' || tb2.my_column as my_new_column from ${MY_DB}.${MY_SECOND_SCHEMA}.MY_TABLE_1 tb_1
+join ${MY_DB}.${MY_SECOND_SCHEMA}.MY_TABLE_2 tb2 
     on tb1.id = tb2.id;
 ```
 
@@ -250,7 +252,7 @@ MY_TABLE_2 as (
 expected_data as (
     select '1' as id, 'old_value1->new_value1' as my_new_column
 )
-select * from ${MY_DB}.{MY_SCHEMA}.SAMPLE_VIEW;
+select * from ${MY_DB}.${MY_SCHEMA}.SAMPLE_VIEW;
 ```
 Then dlsync will generate a query with the following content to validate the test:
 ```
@@ -267,8 +269,8 @@ expected_data as (
     select '1' as id, 'old_value1->new_value1' as my_new_column
 ),
 ACTUAL_DATA as (
-select tb1.id, tb1.my_column || '->' || tb2.my_column as my_new_column from ${MY_DB}.{MY_SECOND_SCHEMA}.MY_TABLE_1 tb_1
-join ${MY_DB}.{MY_SECOND_SCHEMA}.MY_TABLE_2 tb2 
+select tb1.id, tb1.my_column || '->' || tb2.my_column as my_new_column from ${MY_DB}.${MY_SECOND_SCHEMA}.MY_TABLE_1 tb_1
+join ${MY_DB}.${MY_SECOND_SCHEMA}.MY_TABLE_2 tb2 
     on tb1.id = tb2.id
 ),
 assertion as (
@@ -408,6 +410,53 @@ The test module can be triggered using the following command:
 dlsync test -s path/to/db_scripts -p dev
 ```
 
+#### Plan
+This module is used to preview changes before deploying them to the database. It shows what changes would be made without actually executing them, allowing you to review and understand the impact before committing to the deployment.
+The plan command performs a dry-run analysis that:
+- Identifies which scripts have changed since the last deployment
+- Shows the dependency order in which changes would be applied
+- Displays the complete content of all scripts that would be executed
+- Provides metadata about each script (type, version, author, hash)
+- **Does NOT modify the database in any way** (read-only operation)
+
+The plan module can be triggered using the following command:
+```
+dlsync plan -s path/to/db_scripts -p dev
+```
+
+**Output Example:**
+```
+========== DEPLOYMENT PLAN ==========
+Total changes to deploy: 2
+========== DEPLOYMENT ORDER ==========
+1 of 2: MY_DB.MY_SCHEMA.SAMPLE_TABLE
+   Type: Migration
+   Object: MY_DB.MY_SCHEMA.SAMPLE_TABLE (Version: 1)
+   Author: john.doe@company.com
+   Hash: a1b2c3d4e5f6g7h8
+   Content:
+   CREATE TABLE MY_DB.MY_SCHEMA.SAMPLE_TABLE(id VARCHAR, my_column VARCHAR);
+========== END CONTENT ==========
+2 of 2: MY_DB.MY_SCHEMA.SAMPLE_VIEW
+   Type: Declarative
+   Object: MY_DB.MY_SCHEMA.SAMPLE_VIEW
+   Object Type: VIEW
+   Hash: b2c3d4e5f6g7h8i9
+   Content:
+   CREATE VIEW MY_DB.MY_SCHEMA.SAMPLE_VIEW AS SELECT * FROM MY_DB.MY_SCHEMA.SAMPLE_TABLE;
+========== END CONTENT ==========
+========== END PLAN ==========
+```
+
+**Use Cases:**
+- Review changes before deployment in development/staging environments
+- Audit what will be deployed to production
+- Integrate with CI/CD pipelines as a pre-deployment validation step
+- Generate deployment plans for approval workflows
+- Verify script dependencies are correct before execution
+
+**Note:** The plan command is read-only and safe to run multiple times without side effects. However, it will create the necessary DLSync metadata tables if they don't already exist in the target schema.
+
 #### Rollback
 This module is used to rollback changes to the previous deployment. It will rollback the changes to the database objects based on the script files. This should be triggered after you have rolled back the git repository of the script files. 
 The rollback works first by identifying the changes between the current deployment and the previous deployment. For declarative scripts (views, udf, stored procedures and file formats) it will replace them with the current script(i.e previous version as you have already made git rollback). 
@@ -450,7 +499,7 @@ The role must have privileges to create and manage DLSync tracking tables in the
 > **Note:** the database and schema specified in the connection will be used to store the DLSync tracking tables.
 
 ### Database-Level Objects
-For managing database-level objects (VIEWS, FUNCTIONS, PROCEDURES, TABLES, SEQUENCES, STAGES, STREAMS, TASKS, ALERTS, DYNAMIC_TABLES, FILE_FORMATS, PIPES, MASKING_POLICIES, SESSION_POLICIES, PASSWORD_POLICIES, AUTHENTICATION_POLICIES, NOTEBOOKS), the role must have:
+For managing database-level objects (VIEWS, FUNCTIONS, PROCEDURES, TABLES, SEQUENCES, STAGES, STREAMS, TASKS, ALERTS, DYNAMIC_TABLES, FILE_FORMATS, PIPES, MASKING_POLICIES, ROW_ACCESS_POLICIES, TAGS, SESSION_POLICIES, PASSWORD_POLICIES, AUTHENTICATION_POLICIES, NOTEBOOKS), the role must have:
 - **USAGE** on the target schema
 - **CREATE** privileges for the specific object types being deployed (CREATE VIEW, CREATE FUNCTION, CREATE TABLE, etc.)
 - **ALTER** privileges on existing objects in the schema
@@ -517,3 +566,9 @@ created_ts: the timestamp when was this change added
 ```
 ## Example scripts
 To explore the tool, you can use the example scripts provided in the `example_scripts` directory.
+
+## Contributing
+
+We welcome contributions from the community! Whether you're fixing bugs, adding features, or improving documentation, your help is appreciated.
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.

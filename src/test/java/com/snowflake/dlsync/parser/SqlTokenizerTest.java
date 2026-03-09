@@ -1039,5 +1039,39 @@ class SqlTokenizerTest {
         assertEquals(content, script.getContent(), "Script content should match the input content");
     }
 
+    @Test
+    void parseSchemaScriptTypeRowAccessPolicy() {
+        String filePath = "db_scripts/db1/schema1/ROW_ACCESS_POLICIES/CUSTOMER_ACCESS.SQL";
+        String name = "CUSTOMER_ACCESS.SQL";
+        String scriptType = "ROW_ACCESS_POLICIES";
+        String content = "CREATE OR REPLACE ROW ACCESS POLICY db1.schema1.CUSTOMER_ACCESS AS (customer_region VARCHAR) RETURNS BOOLEAN -> CASE WHEN CURRENT_ROLE() IN ('ADMIN') THEN TRUE ELSE FALSE END;";
+
+        SchemaScript script = SqlTokenizer.parseSchemaScript(filePath, name, scriptType, content);
+
+        assertNotNull(script, "Scripts should not be null");
+        assertEquals("CUSTOMER_ACCESS", script.getObjectName(), "Object name should be CUSTOMER_ACCESS");
+        assertEquals("db1".toUpperCase(), script.getDatabaseName(), "Database name should be db1");
+        assertEquals("schema1".toUpperCase(), script.getSchemaName(), "Schema name should be schema1");
+        assertEquals(ScriptObjectType.ROW_ACCESS_POLICIES, script.getObjectType(), "Object type should be ROW_ACCESS_POLICIES");
+        assertEquals(content, script.getContent(), "Script content should match the input content");
+    }
+
+    @Test
+    void parseSchemaScriptTypeTag() {
+        String filePath = "db_scripts/db1/schema1/TAGS/COST_CENTER.SQL";
+        String name = "COST_CENTER.SQL";
+        String scriptType = "TAGS";
+        String content = "CREATE OR REPLACE TAG db1.schema1.COST_CENTER ALLOWED_VALUES 'finance', 'engineering', 'marketing' COMMENT = 'Tag for cost allocation';";
+
+        SchemaScript script = SqlTokenizer.parseSchemaScript(filePath, name, scriptType, content);
+
+        assertNotNull(script, "Scripts should not be null");
+        assertEquals("COST_CENTER", script.getObjectName(), "Object name should be COST_CENTER");
+        assertEquals("db1".toUpperCase(), script.getDatabaseName(), "Database name should be db1");
+        assertEquals("schema1".toUpperCase(), script.getSchemaName(), "Schema name should be schema1");
+        assertEquals(ScriptObjectType.TAGS, script.getObjectType(), "Object type should be TAGS");
+        assertEquals(content, script.getContent(), "Script content should match the input content");
+    }
+
 
 }
